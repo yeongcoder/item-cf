@@ -38,7 +38,85 @@
 - **HR@K (Hit Rate)**: Top-K 내 GT 포함 여부 (정확성)
 - **NDCG@K**: 랭킹 고려 평가
 
-## 📋 설정 파라미터
+## � 평가 지표 상세 설명
+
+### Leave-One-Out 검증 (evaluate_leave_one_out 함수)
+
+각 유사도 측정법을 평가하는 방식:
+
+**평가 원리:**
+- 각 사용자의 **마지막 구매 아이템** → Ground Truth (정답)
+- **그 이전 구매 아이템들** → 모델 입력 데이터
+- 모델이 정답을 추천했는지 검증
+
+**평가 지표:**
+
+1. **HR@K (Hit Rate)**
+   ```
+   HR@K = (정답을 추천 목록 Top-K에 포함시킨 사용자 수) / (평가 대상 총 사용자 수)
+   ```
+   - 추천이 정답을 맞췄는가? (YES/NO)
+   - 0~1 사이의 값 (높을수록 좋음)
+   - 예: HR@20=0.3245 → 32.45%의 사용자에게 정답을 Top-20에 포함
+
+2. **NDCG@K (Normalized Discounted Cumulative Gain)**
+   ```
+   NDCG@K = (1 / log2(rank + 1)) for each user / (최적값)
+   ```
+   - 정답이 몇 번째 순위인가?
+   - 순위가 높을수록 더 높은 점수 (Rank 1: 1.0, Rank 2: 0.63, ...)
+   - 정확도 + 랭킹 순서 모두 고려
+   - 0~1 사이의 값 (높을수록 좋음)
+
+**코드 예시:**
+```python
+def evaluate_leave_one_out(user_items, neighbors, k=20):
+    hits = 0           # 정답을 맞춘 사용자 수
+    ndcg_sum = 0.0     # 누적 NDCG 점수
+    n_eval = 0         # 평가 대상 사용자 수
+    
+    for uid, items in user_items.items():
+        if len(items) < 2:  # 최소 2개 이상의 구매 필요
+            continue
+        
+        gt = items[-1]              # 마지막 아이템 = Ground Truth
+        hist = items[:-1]           # 이전 아이템들 = 입력
+        
+        # 이전 아이템만 사용해서 추천 생성
+        recs = recommend_for_user(uid, {uid: hist}, neighbors, topn=k)
+        rec_list = [it for it, _ in recs]
+        
+        n_eval += 1
+        if gt in rec_list:          # 정답이 Top-K에 있는가?
+            hits += 1               # HR 카운트
+            rank = rec_list.index(gt) + 1  # 몇 번째 순위?
+            ndcg_sum += 1.0 / np.log2(rank + 1)  # NDCG 계산
+    
+    hr = hits / n_eval      # 최종 HR@K
+    ndcg = ndcg_sum / n_eval  # 최종 NDCG@K
+    return hr, ndcg, n_eval
+```
+
+**실제 예시:**
+
+사용자 A의 구매 이력: `[상품1, 상품2, 상품3, 상품4]`
+- **모델 입력:** `[상품1, 상품2, 상품3]`
+- **정답 (Ground Truth):** `상품4`
+- **추천 결과:** `[상품3.5점, 상품4 0.8점, 상품2.5점, ...]`
+
+결과:
+- ✅ HR: 정답(상품4)이 Top-20에 있음 → HR +1
+- ✅ NDCG: 정답이 2번째 순위 → 1/log₂(3) ≈ 0.631 점
+
+### 최고 성능 모델 선택
+
+`--build` 실행 시 다음 과정을 거칩니다:
+1. 4가지 유사도 측정법(Cosine, Jaccard, Lift, PMI) 각각 적용
+2. Leave-One-Out 방식으로 각 방법의 HR@K, NDCG@K 계산
+3. **HR@K가 가장 높은 방법을 최종 모델로 선택**
+4. 선택된 모델의 이웃 테이블을 CSV로 저장
+
+## �📋 설정 파라미터
 
 ```python
 CSV_PATH = "data/_select_o_o_mid_op_op_pcode_p_p_name_UNIX_TIMESTAMP_op_op_rdate__202602021014.csv"
