@@ -395,3 +395,4 @@ chmod 755 neighbors
 ## 👨‍💻 작성자
 
 서영제
+# SASRec_model
