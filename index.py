@@ -7,6 +7,7 @@ from itertools import combinations
 from collections import defaultdict
 from math import sqrt, log2
 from typing import Dict, List, Tuple
+import time
 
 # =========================================
 # 0) 설정
@@ -55,10 +56,7 @@ def build_user_items(df: pd.DataFrame, dedup_per_user=True):
 # 2-1) 아이템ID-이름 매핑
 # =========================================
 def build_item_name_map(df: pd.DataFrame) -> Dict[str, str]:
-    item_name_map = {}
-    for _, row in df.iterrows():
-        item_name_map[row["item_id"]] = row["item_name"]
-    return item_name_map
+    return dict(zip(df["item_id"], df["item_name"]))
 
 # =========================================
 # 3) 아이템/페어 count
@@ -192,15 +190,30 @@ def evaluate_leave_one_out(user_items, neighbors, k=20):
 # 10) 명령에 따라 실행
 # =========================================
 def main():
+    start_main = time.time()
+    
     parser = argparse.ArgumentParser()
     parser.add_argument("--build", action="store_true", help="이웃테이블 생성")
     parser.add_argument("--recommend", action="store_true", help="랜덤 유저 추천")
     args = parser.parse_args()
 
     # 1) 데이터 로드
+    # print("\n⏱️  [데이터 로드 시작...]")
+    
+    start_load = time.time()
     df = load_data(CSV_PATH)
+    time_load = time.time() - start_load
+    # print(f"   ✓ load_data: {time_load*1000:.3f}ms")
+    
+    start_build = time.time()
     user_items = build_user_items(df, dedup_per_user=DEDUP_PER_USER)
+    time_build = time.time() - start_build
+    # print(f"   ✓ build_user_items: {time_build*1000:.3f}ms")
+    
+    start_name = time.time()
     item_name_map = build_item_name_map(df)
+    time_name = time.time() - start_name
+    # print(f"   ✓ build_item_name_map: {time_name*1000:.3f}ms")
 
     # -----------------------------
     # (A) 이웃테이블 생성
@@ -284,6 +297,10 @@ def main():
         for it, sc in recs:
             item_name = item_name_map.get(it, "Unknown")
             print(f"{it} | {item_name} | {sc}")
+    
+    # main 함수 전체 실행시간 출력
+    time_main = time.time() - start_main
+    # print(f"\n⏱️  [main] 전체 실행시간: {time_main*1000:.3f}ms")
 
 
 if __name__ == "__main__":
