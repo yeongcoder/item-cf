@@ -335,6 +335,134 @@ K6634-S1249-C5502,U5071-J1590-R5296,0.7856
 - **HR@K (Hit Rate)**: 추천 목록에서 정답을 맞춘 비율
 - **NDCG@K**: 랭킹 위치를 고려한 평가 메트릭 (0~1, 높을수록 좋음)
 
+## 🖥️ 서버 세팅 및 명령어
+
+### 필수 요구사항
+- Python 3.7 이상
+- pip (Python 패키지 관리자)
+
+### 필요한 라이브러리
+```
+pandas
+numpy
+```
+
+### 환경 셋업
+
+#### 1. 가상환경 생성 및 활성화 (권장)
+```bash
+# 가상환경 생성
+python3 -m venv venv
+
+# 가상환경 활성화
+# macOS / Linux
+source venv/bin/activate
+
+# Windows
+venv\Scripts\activate
+```
+
+#### 2. 의존성 설치
+```bash
+pip install pandas numpy
+```
+
+### 서버 실행 명령어
+
+#### 명령 1: 이웃 테이블 생성 (지능형 모드)
+```bash
+python3 index.py --build
+```
+
+**기능:**
+- 4가지 유사도 측정법(Cosine, Jaccard, Lift, PMI) 성능 비교
+- 각 방법별 HR@K, NDCG@K 평가
+- 가장 높은 성능의 측정법을 자동 선택
+- 선택된 방법으로 아이템 이웃 테이블 생성
+- 결과를 `neighbors/item_cf_neighbors.csv`에 저장
+
+**출력 예시:**
+```
+============================================================
+📊 유사도 측정법 성능 비교
+============================================================
+
+🔍 Testing COSINE similarity...
+   ✓ HR@20=0.3245 | NDCG@20=0.4521
+
+🔍 Testing JACCARD similarity...
+   ✓ HR@20=0.3120 | NDCG@20=0.4385
+
+🔍 Testing LIFT similarity...
+   ✓ HR@20=0.2980 | NDCG@20=0.4120
+
+🔍 Testing PMI similarity...
+   ✓ HR@20=0.3010 | NDCG@20=0.4200
+
+============================================================
+📈 최종 비교 결과
+============================================================
+COSINE     → HR@20=0.3245 | NDCG@20=0.4521
+JACCARD    → HR@20=0.3120 | NDCG@20=0.4385
+LIFT       → HR@20=0.2980 | NDCG@20=0.4120
+PMI        → HR@20=0.3010 | NDCG@20=0.4200
+
+🏆 최고 성능: COSINE (HR=0.3245)
+============================================================
+
+💾 COSINE로 최종 neighbors 저장 중...
+✓ Saved neighbors with COSINE metric
+```
+
+#### 명령 2: 추천 실행 (일반 모드)
+```bash
+python3 index.py --recommend
+```
+
+**기능:**
+- 무작위 사용자 선택
+- 해당 사용자의 구매 이력 표시
+- 이웃 테이블을 기반으로 Top-20 추천 생성
+- 각 추천 아이템의 점수(유사도) 함께 출력
+
+**출력 예시:**
+```
+📊 사용된 유사도: COSINE
+
+🎯 Sample user: user_12345
+history:
+  item_001 | 맥북 프로
+  item_042 | 매직 마우스
+  item_103 | USB-C 케이블
+
+🔽 Top recommendations
+item_254 | 모니터 4K 27인치 | 8.5234
+item_567 | 키보드 기계식 | 7.9123
+item_089 | 충전 허브 | 7.2456
+...
+```
+
+### 설정 커스터마이징
+
+`index.py`의 상단 설정 섹션에서 다음 파라미터 조정 가능:
+
+```python
+CSV_PATH = "data/...csv"              # 입력 데이터 CSV 경로
+NEIGHBOR_CSV_PATH = "neighbors/..."   # 이웃 테이블 저장 경로
+SIM_METRIC = "cosine"                 # 기본 유사도 측정법
+MIN_COCOUNT = 2                       # 최소 동시 구매 횟수
+TOPK_NEIGHBORS = 50                   # 각 아이템당 이웃 개수
+TOPN_RECS = 20                        # 추천 결과 개수
+DEDUP_PER_USER = True                 # 사용자별 중복 제거
+RUN_EVAL = True                       # 평가 실행 여부
+EVAL_K = 20                           # 평가 지표 K값
+```
+
+### 가상환경 종료
+```bash
+deactivate
+```
+
 ## ⚡ 빠른 시작 (Quick Start)
 
 ```bash
